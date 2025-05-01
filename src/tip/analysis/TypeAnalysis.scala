@@ -101,33 +101,53 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
   def visit(node: AstNode, arg: Unit): Unit = {
     log.verb(s"Visiting ${node.getClass.getSimpleName} at ${node.loc}")
     node match {
-      case program: AProgram => ??? // <--- Complete here
-      case _: ANumber => ??? // <--- Complete here
-      case _: AInput => ??? // <--- Complete here
-      case is: AIfStmt => ??? // <--- Complete here
-      case os: AOutputStmt => ??? // <--- Complete here
-      case ws: AWhileStmt => ??? // <--- Complete here
+      case program: AProgram =>
+        program.funs.foreach(func => visit(func, arg))
+      case _: ANumber => unify(node, IntType())
+      case _: AInput => unify(node, IntType())
+      case is: AIfStmt =>
+        unify(is.guard, IntType())
+        visit(is.ifBranch, arg)
+        if (is.elseBranch.isDefined)
+          visit(is.elseBranch.get, arg)
+      case os: AOutputStmt => unify(os.exp, IntType())
+      case ws: AWhileStmt =>
+        unify(ws.guard, IntType())
+        visit(ws.innerBlock, arg)
       case as: AAssignStmt =>
         as.left match {
-          case id: AIdentifier => ??? // <--- Complete here
-          case dw: ADerefWrite => ??? // <--- Complete here
-          case dfw: ADirectFieldWrite => ??? // <--- Complete here
-          case ifw: AIndirectFieldWrite => ??? // <--- Complete here
+          case id: AIdentifier => unify(id, as.right)
+          case dw: ADerefWrite => unify(dw.exp, PointerType(as.right))
+          case dfw: ADirectFieldWrite =>
+            unify(dfw.id, RecordType(allFieldNames.map { f =>
+              if (f != dfw.field) FreshVarType()
+              else Type.ast2typevar(as.right)
+            }))
+          case ifw: AIndirectFieldWrite =>
+            unify(ifw.exp, PointerType(RecordType(allFieldNames.map { f =>
+              if (f != ifw.field) FreshVarType()
+              else Type.ast2typevar(as.right)
+            })))
         }
       case bin: ABinaryOp =>
         bin.operator match {
-          case Eqq => ??? // <--- Complete here
-          case _ => ??? // <--- Complete here
+          case Eqq =>
+            unify(bin.left, bin.right)
+            unify(bin, IntType())
+          case _ =>
+            unify(bin.left, IntType())
+            unify(bin.right, IntType())
+            unify(bin, IntType())
         }
       case un: AUnaryOp =>
         un.operator match {
-          case DerefOp => ??? // <--- Complete here
+          case DerefOp => unify(un.subexp, PointerType(un))
         }
-      case alloc: AAlloc => ??? // <--- Complete here
-      case ref: AVarRef => ??? // <--- Complete here
-      case _: ANull => ??? // <--- Complete here
-      case fun: AFunDeclaration => ??? // <--- Complete here
-      case call: ACallFuncExpr => ??? // <--- Complete here
+      case alloc: AAlloc => unify(alloc, PointerType(FreshVarType()))
+      case ref: AVarRef => unify(ref, PointerType(ref.id))
+      case _: ANull => unify(node, PointerType(FreshVarType()))
+      case fun: AFunDeclaration => unify(fun, FunctionType(fun.params, fun.stmts.ret))
+      case call: ACallFuncExpr => unify(FunctionType(call.args, call), call.targetFun)
       case _: AReturnStmt =>
       case rec: ARecord =>
         val fieldmap = rec.fields.foldLeft(Map[String, Term[Type]]()) { (a, b) =>
