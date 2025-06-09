@@ -61,7 +61,7 @@ main() {
   ⟦alloc null[3:9]⟧ = ⭡μx6.⭡x6
 ```
 
-### Дописать реализацию класса TypeAnalysis1 в TIP (паттерн матчинг — ваш друг!)
+### Дописать реализацию класса TypeAnalysis в TIP (паттерн матчинг — ваш друг!)
 
 https://github.com/deevroman/TIP/commit/d215cd966fc315fe886232bc8acb968fcf3d7572
 
